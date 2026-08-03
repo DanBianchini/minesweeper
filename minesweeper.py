@@ -1,5 +1,6 @@
 from tkinter import *
 from tkinter import ttk
+from random import randint
 
 class Tile(Button):
     FLAG = chr(0x2691)
@@ -17,7 +18,7 @@ class Tile(Button):
         super().__init__(
             frm,
             text='',
-            command=self.reveal,
+            command=self.chain_reveal,
             width=2,
             height=1,
             disabledforeground='#ff0000' if self.is_mine else '#000000'
@@ -50,6 +51,11 @@ class Tile(Button):
         self.adjacent = tuple(result)
 
     def calculate_threat_level(self):
+        # if this tile is a mine, set threat level to 9 and be done
+        if self.is_mine:
+            self.threat_level = 9
+            return
+
         self.threat_level = 0 # start with 0, will add one for each adjacent mine
 
         # iterate thru adjacent tiles and increment for each mine
@@ -57,7 +63,23 @@ class Tile(Button):
             if tile.is_mine:
                 self.threat_level += 1 # mine detected
 
+    def chain_reveal(self):
+        # reveal this tile
+        self.reveal()
+
+        # if this tile is safe, reveal the adjacent tiles
+        if self.threat_level == 0:
+            for tile in self.adjacent:
+                if tile.threat_level == 0 and tile.cget('state') != DISABLED:
+                    tile.chain_reveal()
+                else:
+                    tile.reveal()
+
     def reveal(self):
+        # if tile is already revealed, don't bother
+        if self.cget('state') == DISABLED:
+            return
+        
         # decide what the button text will be
         if self.is_mine:
             button_text = Tile.MINE
@@ -70,10 +92,6 @@ class Tile(Button):
             state=DISABLED,
             bg='#B0B0B0'
         )
-
-        # TODO reveal other non-disabled buttons around this one that have a threat_level = 0
-        #for coord in self.adjacent:
-            #adj_tile = self.master.grid_slaves(coord[1], coord[0])[0]
 
     def mark_unmark(self, event):
         # if button is disabled, exit the function
@@ -98,7 +116,7 @@ class Minesweeper:
         self.minefield.grid()
 
         # generate the minefield in the 'minefield' Frame
-        Minesweeper.generate_minefield_test(self.minefield, width, height, num_mines)
+        Minesweeper.plant_mines(self.minefield, width, height, *Minesweeper.generate_minefield_random(self.minefield, width, height, num_mines))
 
     def load(self):
         # iterate over all tiles
@@ -106,23 +124,50 @@ class Minesweeper:
             tile.generate_adjacent()
             tile.calculate_threat_level()
 
-    def generate_minefield_test(minefield: ttk.Frame, width: int, height: int, num_mines: int):
-        mines_planted = 0 # keep track of how many mines have been planted
+    def generate_minefield_test(minefield: ttk.Frame, width: int, height: int, num_mines: int) -> tuple[tuple[int, int]]:
+        result = [] # will store coordinate pairs
 
-        # create tile buttons in frame
+        # generate simple coordinates
         for y in range(height):
             for x in range(width):
 
-                # determine whether or not this tile will be a mine
+                # check if done
+                if len(result) == num_mines:
+                    return tuple(result)
+
+                # plant mines starting from the upper left corner going to the right until mines run out
+                result.append((x, y))
+
+    def generate_minefield_random(minefield: ttk.Frame, width: int, height: int, num_mines: int):
+            result = [] # will store coordinate pairs
+            mines_planted = 0 # will store the # of mines planted
+            
+            # generate coordinates
+            while mines_planted < num_mines:
+                coords = (randint(0, width - 1), randint(0, height - 1))
+                if coords not in result:
+                    result.append(coords)
+                    mines_planted += 1
+
+            # return the coordinates
+            return tuple(result)
+
+    def plant_mines(minefield: ttk.Frame, width: int, height: int, *mine_coords: tuple[int, int]):
+        mines_planted = 0 # keep track of how many mines have been planted
+        
+        # create tile buttons in frame
+        for y in range(height):
+            for x in range(width):
+                # if these coordinates are one of the pairs listed, plant a mine
                 plant_mine = False
-                if mines_planted < num_mines: # TODO simple logic for testing for now
+                if (x, y) in mine_coords:
                     plant_mine = True
                     mines_planted += 1
 
-                # creat the tile
+                # create the tile
                 Tile(x, y, minefield, plant_mine).grid(column=x, row=y)
 
 if __name__ == "__main__":
-    ms = Minesweeper(25, 25, 10)
+    ms = Minesweeper(25, 25, 100)
     ms.load()
     ms.board.mainloop()
