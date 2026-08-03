@@ -5,8 +5,9 @@ from random import randint
 class Tile(Button):
     FLAG = chr(0x2691)
     MINE = chr(0x26ab)
+    PICKAXE = chr(0x26cf)
 
-    def __init__(self, x: int, y: int, frm: ttk.Frame, plant_mine: bool = False):
+    def __init__(self, x: int, y: int, frm: ttk.Frame, plant_mine: bool = False, safe_spot = False):
         # initialize instance variables
         self.x = x
         self.y = y
@@ -17,7 +18,7 @@ class Tile(Button):
         # call parent constructor
         super().__init__(
             frm,
-            text='',
+            text=Tile.PICKAXE if safe_spot else '',
             command=self.chain_reveal,
             width=2,
             height=1,
@@ -116,7 +117,8 @@ class Minesweeper:
         self.minefield.grid()
 
         # generate the minefield in the 'minefield' Frame
-        Minesweeper.plant_mines(self.minefield, width, height, *Minesweeper.generate_minefield_random(self.minefield, width, height, num_mines))
+        safe_spot = (int(width/2), int(height/2))
+        Minesweeper.plant_mines(self.minefield, width, height, safe_spot, *Minesweeper.generate_minefield_random(self.minefield, width, height, num_mines, safe_spot))
 
     def load(self):
         # iterate over all tiles
@@ -124,7 +126,7 @@ class Minesweeper:
             tile.generate_adjacent()
             tile.calculate_threat_level()
 
-    def generate_minefield_test(minefield: ttk.Frame, width: int, height: int, num_mines: int) -> tuple[tuple[int, int]]:
+    def generate_minefield_test(minefield: ttk.Frame, width: int, height: int, num_mines: int, safe_spot: tuple[int, int]) -> tuple[tuple[int, int]]:
         result = [] # will store coordinate pairs
 
         # generate simple coordinates
@@ -135,16 +137,27 @@ class Minesweeper:
                 if len(result) == num_mines:
                     return tuple(result)
 
+                # skip safe spot
+                if (x, y) == safe_spot:
+                    continue
+
                 # plant mines starting from the upper left corner going to the right until mines run out
                 result.append((x, y))
 
-    def generate_minefield_random(minefield: ttk.Frame, width: int, height: int, num_mines: int):
+    def generate_minefield_random(minefield: ttk.Frame, width: int, height: int, num_mines: int, safe_spot: tuple[int, int]) -> tuple[tuple[int, int]]:
             result = [] # will store coordinate pairs
             mines_planted = 0 # will store the # of mines planted
             
             # generate coordinates
             while mines_planted < num_mines:
+                # generate random coordinates
                 coords = (randint(0, width - 1), randint(0, height - 1))
+
+                # if this is the safe spot (or adjacent to it), try a different spot
+                if (coords[0] in (safe_spot[0] - 1, safe_spot[0], safe_spot[0] + 1)) or (coords[1] in (safe_spot[1] - 1, safe_spot[1], safe_spot[1] + 1)):
+                    continue
+
+                # if these coordinates have not already been picked, add them to the results list
                 if coords not in result:
                     result.append(coords)
                     mines_planted += 1
@@ -152,7 +165,7 @@ class Minesweeper:
             # return the coordinates
             return tuple(result)
 
-    def plant_mines(minefield: ttk.Frame, width: int, height: int, *mine_coords: tuple[int, int]):
+    def plant_mines(minefield: ttk.Frame, width: int, height: int, safe_spot: tuple[int, int], *mine_coords: tuple[int, int]):
         mines_planted = 0 # keep track of how many mines have been planted
         
         # create tile buttons in frame
@@ -164,8 +177,11 @@ class Minesweeper:
                     plant_mine = True
                     mines_planted += 1
 
+                # figure out if this is the safe spot
+                is_safe_spot = ((x, y) == safe_spot)
+
                 # create the tile
-                Tile(x, y, minefield, plant_mine).grid(column=x, row=y)
+                Tile(x, y, minefield, plant_mine, is_safe_spot).grid(column=x, row=y)
 
 if __name__ == "__main__":
     ms = Minesweeper(25, 25, 100)
