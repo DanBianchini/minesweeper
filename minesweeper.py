@@ -154,7 +154,7 @@ class Minesweeper:
                 coords = (randint(0, width - 1), randint(0, height - 1))
 
                 # if this is the safe spot (or adjacent to it), try a different spot
-                if (coords[0] in (safe_spot[0] - 1, safe_spot[0], safe_spot[0] + 1)) or (coords[1] in (safe_spot[1] - 1, safe_spot[1], safe_spot[1] + 1)):
+                if (coords[0] in (safe_spot[0] - 1, safe_spot[0], safe_spot[0] + 1)) and (coords[1] in (safe_spot[1] - 1, safe_spot[1], safe_spot[1] + 1)):
                     continue
 
                 # if these coordinates have not already been picked, add them to the results list
@@ -184,6 +184,6 @@ class Minesweeper:
                 Tile(x, y, minefield, plant_mine, is_safe_spot).grid(column=x, row=y)
 
 if __name__ == "__main__":
-    ms = Minesweeper(25, 25, 100)
+    ms = Minesweeper(25, 25, 150)
     ms.load()
     ms.board.mainloop()
