@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter import ttk
 from random import randint
+import time
 
 class Tile(Button):
     FLAG = chr(0x2691)
@@ -86,10 +87,10 @@ class Tile(Button):
         if self.cget('text') == Tile.FLAG:
             return
         
-        # decide what the button text will be; if this is a mine, increase the casualty count of the master Minefield
+        # decide what the button text will be; if this is a mine, increase the casualty count by updating the info panel
         if self.is_mine:
             button_text = Tile.MINE # set button text to mine
-            self.master.casualties += 1 # increment casualties
+            self.master.master.update_info_panel(casualty=True) # increment casualties
         else:
             button_text = '' if self.threat_level == 0 else str(self.threat_level)
 
@@ -108,12 +109,12 @@ class Tile(Button):
         # unmark tile if marked
         if self.cget('text') == Tile.FLAG:
             self.config(text='') # set tile text to blank
-            self.master.flag_count -= 1 # decrement flag count of Minefield master Frame
+            self.master.master.update_info_panel(flag_increment=False) # decrement flag count of Minefield master Frame
 
         # mark tile if unmarked
         else:
             self.config(text=Tile.FLAG) # set tile text to flag
-            self.master.flag_count += 1 # increment flag count of Minefield master Frame
+            self.master.master.update_info_panel(flag_increment=True) # increment flag count of Minefield master Frame
 
 class Minefield(ttk.Frame):
     def __init__(self, board: Tk, width: int, height: int, num_mines: int):
@@ -121,8 +122,6 @@ class Minefield(ttk.Frame):
         self.width = width
         self.height = height
         self.num_mines = num_mines
-        self.flag_count = 0
-        self.casualties = 0
 
         super().__init__(board, padding=0) # call parent constructor function
         self.grid() # set up grid
@@ -196,12 +195,74 @@ class Minefield(ttk.Frame):
                 # create the tile
                 Tile(x, y, self, plant_mine, is_safe_spot).grid(column=x, row=y)
 
+class Info_Panel(ttk.Frame):
+    def __init__(self, board: Tk):
+        super().__init__(board) # call super constructor
+        self.grid() # set up grid
+
+        # create labels
+        Label(self, text='Casualties').grid(row=0, column=0)
+        Label(self, text='Time', width=30).grid(row=0, column=1)
+        Label(self, text='Flags').grid(row=0, column=2)
+
+        # create StringVars for counter Labels
+        self.casualties = StringVar()
+        self.duration = StringVar()
+        self.flags = StringVar()
+
+        # initialize StringVar text
+        self.casualties.set('0')
+        self.duration.set('0:00')
+        self.flags.set('0')
+
+        # create counters
+        Label(self, textvariable=self.casualties).grid(row=1, column=0)
+        Label(self, textvariable=self.duration).grid(row=1, column=1)
+        Label(self, textvariable=self.flags).grid(row=1, column=2)
+
 class Board(Tk):
     def __init__(self, width: int, height: int, num_mines: int):
+        # initialize instance variables
+        self.casualties = 0 # the # of casualties that have ocurred (each mine tile revealed)
+        self.duration = 0 # time in seconds since game has started
+        self.flags = 0 # the # of flags currently placed
+
         super().__init__() # call super constructor
         self.title("Minesweeper") # set title bar text
+
+        # create information panel
+        self.info_panel = Info_Panel(self)
+
+        # create minefield
         self.minefield = Minefield(self, width, height, num_mines) # create Minefield Frame in Board
         self.minefield.load() # call load function on Minefield instance after initialization (required)
+
+    def format_seconds(seconds: int) -> str:
+        return time.strftime('%H:%M:%S', time.gmtime(seconds))
+
+    def update_info_panel(self, casualty: bool = False, time: bool = False, flag_increment: bool = None):
+        # updating casualty counter
+        if casualty:
+            self.casualties += 1 # increment
+            self.info_panel.casualties.set(str(self.casualties))
+
+        # updating time counter
+        if time:
+            self.duration += 1 # increment
+            self.info_panel.duration.set(Board.format_seconds(self.duration))
+
+        # updating the flag counter
+        if flag_increment is not None:
+
+            # incrementing
+            if flag_increment:
+                self.flags += 1
+                self.info_panel.flags.set(str(self.flags))
+
+            # decrementing
+            else:
+                self.flags -= 1
+                self.info_panel.flags.set(str(self.flags))
 
 if __name__ == "__main__":
     board = Board(25, 25, 100)
