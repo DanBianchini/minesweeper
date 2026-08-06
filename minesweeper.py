@@ -86,9 +86,10 @@ class Tile(Button):
         if self.cget('text') == Tile.FLAG:
             return
         
-        # decide what the button text will be
+        # decide what the button text will be; if this is a mine, increase the casualty count of the master Minefield
         if self.is_mine:
-            button_text = Tile.MINE
+            button_text = Tile.MINE # set button text to mine
+            self.master.casualties += 1 # increment casualties
         else:
             button_text = '' if self.threat_level == 0 else str(self.threat_level)
 
@@ -104,8 +105,15 @@ class Tile(Button):
         if self.cget('state') == DISABLED:
             return
 
-        # configure button
-        self.config(text=Tile.FLAG if self.cget('text') == '' else '')
+        # unmark tile if marked
+        if self.cget('text') == Tile.FLAG:
+            self.config(text='') # set tile text to blank
+            self.master.flag_count -= 1 # decrement flag count of Minefield master Frame
+
+        # mark tile if unmarked
+        else:
+            self.config(text=Tile.FLAG) # set tile text to flag
+            self.master.flag_count += 1 # increment flag count of Minefield master Frame
 
 class Minefield(ttk.Frame):
     def __init__(self, board: Tk, width: int, height: int, num_mines: int):
@@ -114,6 +122,7 @@ class Minefield(ttk.Frame):
         self.height = height
         self.num_mines = num_mines
         self.flag_count = 0
+        self.casualties = 0
 
         super().__init__(board, padding=0) # call parent constructor function
         self.grid() # set up grid
