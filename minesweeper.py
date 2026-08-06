@@ -89,7 +89,7 @@ class Tile(Button):
             return
 
         # check if this is the first tile revealed; if it is, signal that the game has become active
-        if self.master.master.first_reveal:
+        if not self.master.master.game_active.is_set():
             self.master.master.start_game()
         
         # decide what the button text will be; if this is a mine, increase the casualty count by updating the info panel
@@ -244,7 +244,6 @@ class Board(Tk):
         self.casualties = 0 # the # of casualties that have ocurred (each mine tile revealed)
         self.duration = 0 # time in seconds since game has started
         self.flags = 0 # the # of flags currently placed
-        self.first_reveal = True # indicates that this is the first reveal of the game; TODO: will need to reset this if starting a new game
         self.game_active = threading.Event() # event to signal to the clock thread when to be actively counting
 
         super().__init__() # call super constructor
@@ -260,31 +259,40 @@ class Board(Tk):
         self.minefield.load() # call load function on Minefield instance after initialization (required)
         self.minefield.pack()
 
+        # create big button
+        self.big_button = Button(self, command=self.end_game, text="Signal 'All Clear!'", bg='#ffff00', fg='#000000')
+        self.big_button.pack(fill='x',expand=True)
+
         # create thread that will tick the time up each second
-        self.clock = threading.Thread(target=self.run_clock, daemon=True)
+        self.clock = threading.Thread(target=self.run_clock, daemon=True) # create Thread
+        self.clock.start() # start clock Thread
 
     def reset(self):
         self.casualties = 0 # the # of casualties that have ocurred (each mine tile revealed)
         self.duration = 0 # time in seconds since game has started
         self.flags = 0 # the # of flags currently placed
-        self.first_reveal = True # indicates that this is the first reveal of the game
         self.game_active.clear() # event to signal to the clock thread when to be actively counting; should already be cleared at this point, just being safe
         self.info_panel.reset() # reset info panel
         self.minefield.reset() # reset the minefield
 
+        # TODO: reset big button
+
     def start_game(self):
         self.game_active.set() # event to signal to the clock thread when to be actively counting
-        self.first_reveal = False # indicates that this is the first reveal of the game
-        self.clock.start() # start clock
 
     def end_game(self):
-        self.game_active.clear()
+        self.game_active.clear() # signal the clock to stop
+
+        # TODO: reveal all tiles on the board one at a time
+
+        # TODO: transform the big button to reset everything on press
 
     def run_clock(self):
-        while self.game_active.is_set():
+        while True:
             time.sleep(1)
-            self.duration += 1 # increment
-            self.info_panel.duration.set(time.strftime('%H:%M:%S', time.gmtime(self.duration)))
+            if self.game_active.is_set():
+                self.duration += 1 # increment
+                self.info_panel.duration.set(time.strftime('%H:%M:%S', time.gmtime(self.duration)))
 
     def update_info_panel(self, casualty: bool = False, flag_increment: bool = None):
         # updating casualty counter
