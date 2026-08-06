@@ -129,7 +129,6 @@ class Minefield(ttk.Frame):
         self.num_mines = num_mines
 
         super().__init__(board, padding=0) # call parent constructor function
-        self.grid() # set up grid
 
     def load(self):
         # generate the minefield in the Frame
@@ -206,13 +205,13 @@ class Minefield(ttk.Frame):
 
 class Info_Panel(ttk.Frame):
     def __init__(self, board: Tk):
-        super().__init__(board) # call super constructor
-        self.grid() # set up grid
+        ttk.Style().configure('Info_Panel.TFrame', background='black', ) # create custom style
+        super().__init__(board, style='Info_Panel.TFrame') # call super constructor
 
         # create labels
-        Label(self, text='Casualties').grid(row=0, column=0)
-        Label(self, text='Time', width=30).grid(row=0, column=1)
-        Label(self, text='Flags').grid(row=0, column=2)
+        Label(self, text='Casualties', bg='#000000', fg='#ff0000').grid(row=0, column=0, sticky='ew')
+        Label(self, text='Time', bg='#000000', fg='#ffff00').grid(row=0, column=1, sticky='ew')
+        Label(self, text='Flags', bg='#000000', fg='#8080ff').grid(row=0, column=2, sticky='ew')
 
         # create StringVars for counter Labels
         self.casualties = StringVar()
@@ -225,9 +224,13 @@ class Info_Panel(ttk.Frame):
         self.flags.set('0')
 
         # create counters
-        Label(self, textvariable=self.casualties).grid(row=1, column=0)
-        Label(self, textvariable=self.duration).grid(row=1, column=1)
-        Label(self, textvariable=self.flags).grid(row=1, column=2)
+        Label(self, textvariable=self.casualties, bg='#000000', fg='#ff0000').grid(row=1, column=0, sticky='ew')
+        Label(self, textvariable=self.duration, bg='#000000', fg='#ffff00').grid(row=1, column=1, sticky='ew')
+        Label(self, textvariable=self.flags, bg='#000000', fg='#8080ff').grid(row=1, column=2, sticky='ew')
+
+        # configure columns to expand evenly
+        for col in (0, 1, 2):
+            self.grid_columnconfigure(col, weight=1)
 
     def reset(self):
         # reset to default values
@@ -250,10 +253,12 @@ class Board(Tk):
 
         # create information panel
         self.info_panel = Info_Panel(self)
+        self.info_panel.pack(fill='x', expand=True)
 
         # create minefield
         self.minefield = Minefield(self, width, height, num_mines) # create Minefield Frame in Board
         self.minefield.load() # call load function on Minefield instance after initialization (required)
+        self.minefield.pack()
 
         # create thread that will tick the time up each second
         self.clock = threading.Thread(target=self.run_clock, daemon=True)
