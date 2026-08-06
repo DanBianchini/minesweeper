@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter import ttk
 from random import randint
 import time
+import threading
 
 class Tile(Button):
     FLAG = chr(0x2691)
@@ -86,6 +87,10 @@ class Tile(Button):
         # check if tile is marked; if it is, don't reveal it and just exit the function
         if self.cget('text') == Tile.FLAG:
             return
+
+        # check if this is the first tile revealed; if it is, signal that the game has become active
+        if self.master.master.first_reveal:
+            self.master.master.start_game()
         
         # decide what the button text will be; if this is a mine, increase the casualty count by updating the info panel
         if self.is_mine:
@@ -212,7 +217,7 @@ class Info_Panel(ttk.Frame):
 
         # initialize StringVar text
         self.casualties.set('0')
-        self.duration.set('0:00')
+        self.duration.set('00:00:00')
         self.flags.set('0')
 
         # create counters
@@ -226,9 +231,12 @@ class Board(Tk):
         self.casualties = 0 # the # of casualties that have ocurred (each mine tile revealed)
         self.duration = 0 # time in seconds since game has started
         self.flags = 0 # the # of flags currently placed
+        self.first_reveal = True # indicates that this is the first reveal of the game; TODO: will need to reset this if starting a new game
+        self.game_active = threading.Event() # event to signal to the clock thread when to be actively counting
 
         super().__init__() # call super constructor
         self.title("Minesweeper") # set title bar text
+        self.protocol('WM_DELETE_WINDOW', self.on_close)
 
         # create information panel
         self.info_panel = Info_Panel(self)
@@ -237,19 +245,25 @@ class Board(Tk):
         self.minefield = Minefield(self, width, height, num_mines) # create Minefield Frame in Board
         self.minefield.load() # call load function on Minefield instance after initialization (required)
 
-    def format_seconds(seconds: int) -> str:
-        return time.strftime('%H:%M:%S', time.gmtime(seconds))
+        # create thread that will tick the time up each second
+        self.clock = threading.Thread(target=self.run_clock, daemon=True)
 
-    def update_info_panel(self, casualty: bool = False, time: bool = False, flag_increment: bool = None):
+    def start_game(self):
+        self.game_active.set()
+        self.first_reveal = False
+        self.clock.start()
+
+    def run_clock(self):
+        while self.game_active.is_set():
+            time.sleep(1)
+            self.duration += 1 # increment
+            self.info_panel.duration.set(time.strftime('%H:%M:%S', time.gmtime(self.duration)))
+
+    def update_info_panel(self, casualty: bool = False, flag_increment: bool = None):
         # updating casualty counter
         if casualty:
             self.casualties += 1 # increment
             self.info_panel.casualties.set(str(self.casualties))
-
-        # updating time counter
-        if time:
-            self.duration += 1 # increment
-            self.info_panel.duration.set(Board.format_seconds(self.duration))
 
         # updating the flag counter
         if flag_increment is not None:
@@ -263,6 +277,10 @@ class Board(Tk):
             else:
                 self.flags -= 1
                 self.info_panel.flags.set(str(self.flags))
+
+    def on_close(self):
+        self.game_active.clear()
+        self.destroy()
 
 if __name__ == "__main__":
     board = Board(25, 25, 100)
