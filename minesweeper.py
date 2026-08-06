@@ -80,6 +80,10 @@ class Tile(Button):
         # if tile is already revealed, don't bother
         if self.cget('state') == DISABLED:
             return
+
+        # check if tile is marked; if it is, don't reveal it and just exit the function
+        if self.cget('text') == Tile.FLAG:
+            return
         
         # decide what the button text will be
         if self.is_mine:
@@ -108,11 +112,13 @@ class Minesweeper:
         self.width = width
         self.height = height
         self.num_mines = num_mines
-        self.num_flags = 0
+        self.flag_count = 0
 
-        # create board + components
+        # create board
         self.board = Tk() # create board
-        # TODO potentially save minefield to an instance variable for later if needed
+        self.board.title("Minesweeper") # set title bar text
+
+        # create minefield Frame
         self.minefield = ttk.Frame(self.board, padding=0) # create frame in board
         self.minefield.grid()
 
