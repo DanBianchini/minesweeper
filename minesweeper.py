@@ -141,6 +141,10 @@ class Minefield(ttk.Frame):
             tile.generate_adjacent()
             tile.calculate_threat_level()
 
+    def reset(self):
+        # TODO: implement
+        pass
+
     def generate_minefield_test(self, safe_spot: tuple[int, int]) -> tuple[tuple[int, int]]:
         result = [] # will store coordinate pairs
 
@@ -225,6 +229,12 @@ class Info_Panel(ttk.Frame):
         Label(self, textvariable=self.duration).grid(row=1, column=1)
         Label(self, textvariable=self.flags).grid(row=1, column=2)
 
+    def reset(self):
+        # reset to default values
+        self.casualties.set('0')
+        self.duration.set('00:00:00')
+        self.flags.set('0')
+
 class Board(Tk):
     def __init__(self, width: int, height: int, num_mines: int):
         # initialize instance variables
@@ -248,10 +258,22 @@ class Board(Tk):
         # create thread that will tick the time up each second
         self.clock = threading.Thread(target=self.run_clock, daemon=True)
 
+    def reset(self):
+        self.casualties = 0 # the # of casualties that have ocurred (each mine tile revealed)
+        self.duration = 0 # time in seconds since game has started
+        self.flags = 0 # the # of flags currently placed
+        self.first_reveal = True # indicates that this is the first reveal of the game
+        self.game_active.clear() # event to signal to the clock thread when to be actively counting; should already be cleared at this point, just being safe
+        self.info_panel.reset() # reset info panel
+        self.minefield.reset() # reset the minefield
+
     def start_game(self):
-        self.game_active.set()
-        self.first_reveal = False
-        self.clock.start()
+        self.game_active.set() # event to signal to the clock thread when to be actively counting
+        self.first_reveal = False # indicates that this is the first reveal of the game
+        self.clock.start() # start clock
+
+    def end_game(self):
+        self.game_active.clear()
 
     def run_clock(self):
         while self.game_active.is_set():
