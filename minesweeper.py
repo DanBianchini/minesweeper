@@ -265,8 +265,13 @@ class Agent_Panel(ttk.Frame):
         Label(self, text='AGENTS', bg='#000000', fg='#00ff00').pack()
 
         # create Label for each agent
+        self.agent_labels = [] # start with empty list that will store all agent Labels
         for i in range(num_agents):
-            Label(self, text=Agent_Panel.AGENT, bg='#000000', fg='#00ff00').pack()
+            self.agent_labels.append(Label(self, text=Agent_Panel.AGENT, bg='#000000', fg='#00ff00'))
+            self.agent_labels[-1].pack()
+
+    def remove_agent(self):
+        self.agent_labels.pop().destroy()
 
 class Board(Tk):
     def __init__(self, width: int, height: int, num_mines: int):
@@ -283,7 +288,7 @@ class Board(Tk):
 
         # create information panel
         self.info_panel = Info_Panel(self)
-        self.info_panel.grid(row=0, column=0)
+        self.info_panel.grid(row=0, column=0, sticky='ew')
 
         # create minefield
         self.minefield = Minefield(self, width, height, num_mines) # create Minefield Frame in Board
