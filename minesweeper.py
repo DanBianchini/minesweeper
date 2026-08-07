@@ -8,6 +8,7 @@ class Tile(Button):
     FLAG = chr(0x2691)
     MINE = chr(0x26ab)
     PICKAXE = chr(0x26cf)
+    AGENT = chr(0x26d1)
 
     def __init__(self, x: int, y: int, frm: ttk.Frame, plant_mine: bool = False, safe_spot = False):
         # initialize instance variables
@@ -68,6 +69,10 @@ class Tile(Button):
                 self.threat_level += 1 # mine detected
 
     def chain_reveal(self):
+        # check if this is the start of the game; if it is, signal that the game has become active
+        if not self.master.master.game_active.is_set():
+            self.master.master.start_game()
+
         # reveal this tile
         self.reveal()
 
@@ -87,17 +92,15 @@ class Tile(Button):
         # check if tile is marked; if it is, don't reveal it and just exit the function
         if self.cget('text') == Tile.FLAG:
             return
-
-        # check if this is the first tile revealed; if it is, signal that the game has become active
-        if not self.master.master.game_active.is_set():
-            self.master.master.start_game()
         
         # decide what the button text will be; if this is a mine, increase the casualty count by updating the info panel
         if self.is_mine:
             button_text = Tile.MINE # set button text to mine
             self.master.master.update_info_panel(casualty=True) # increment casualties
-        else:
+        elif self.master.master.game_active.is_set():
             button_text = '' if self.threat_level == 0 else str(self.threat_level)
+        else:
+            button_text = Tile.AGENT
 
         # configure button
         self.config(
@@ -203,6 +206,19 @@ class Minefield(ttk.Frame):
                 # create the tile
                 Tile(x, y, self, plant_mine, is_safe_spot).grid(column=x, row=y)
 
+    def all_clear_march(self):
+        # initialize time variables
+        speed = 0.5
+        speedup_factor = 0.95
+
+        # iterate through all tiles in the minefield
+        for tile in self.grid_slaves():
+            if tile.cget('state') != DISABLED and tile.cget('text') != Tile.FLAG:
+                time.sleep(speed)
+                speed *= speedup_factor
+                tile.reveal()
+                tile.update_idletasks()
+
 class Info_Panel(ttk.Frame):
     def __init__(self, board: Tk):
         ttk.Style().configure('Info_Panel.TFrame', background='black', ) # create custom style
@@ -248,7 +264,8 @@ class Board(Tk):
 
         super().__init__() # call super constructor
         self.title("Minesweeper") # set title bar text
-        self.protocol('WM_DELETE_WINDOW', self.on_close)
+        self.config(bg='#000000') # set background color of window
+        self.protocol('WM_DELETE_WINDOW', self.on_close) # bind window close action to function
 
         # create information panel
         self.info_panel = Info_Panel(self)
@@ -257,11 +274,11 @@ class Board(Tk):
         # create minefield
         self.minefield = Minefield(self, width, height, num_mines) # create Minefield Frame in Board
         self.minefield.load() # call load function on Minefield instance after initialization (required)
-        self.minefield.pack()
+        self.minefield.pack(padx=20)
 
         # create big button
-        self.big_button = Button(self, command=self.end_game, text="Signal 'All Clear!'", bg='#ffff00', fg='#000000')
-        self.big_button.pack(fill='x',expand=True)
+        self.big_button = Button(self, command=self.end_game, text="Signal 'All Clear!'")
+        self.big_button.pack(fill='x',expand=True, padx=200, pady=20)
 
         # create thread that will tick the time up each second
         self.clock = threading.Thread(target=self.run_clock, daemon=True) # create Thread
@@ -283,7 +300,10 @@ class Board(Tk):
     def end_game(self):
         self.game_active.clear() # signal the clock to stop
 
-        # TODO: reveal all tiles on the board one at a time
+        # reveal all tiles on the board one at a time
+        self.minefield.all_clear_march()
+
+        # TODO: impose some sort of penalty for marking more tiles than needed
 
         # TODO: transform the big button to reset everything on press
 
