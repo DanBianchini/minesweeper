@@ -15,8 +15,9 @@ class Tile(Button):
         self.x = x
         self.y = y
         self.is_mine = plant_mine
-        self.threat_level = None # initialize to None; will be calculated after the entire minefield has been generated
-        self.adjacent = None # initialize to None; will be calculated after the entire minefield has been generated
+        self.threat_level = None    # initialize to None; will be calculated after the entire minefield has been generated
+        self.adjacent = None        # initialize to None; will be calculated after the entire minefield has been generated
+        self.reveal_text = None     # initialize to None; will be calculated after the entire minefield has been generated
 
         # call parent constructor
         super().__init__(
@@ -59,6 +60,7 @@ class Tile(Button):
         # if this tile is a mine, set threat level to 9 and be done
         if self.is_mine:
             self.threat_level = 9
+            self.reveal_text = Tile.MINE
             return
 
         self.threat_level = 0 # start with 0, will add one for each adjacent mine
@@ -67,6 +69,12 @@ class Tile(Button):
         for tile in self.adjacent:
             if tile.is_mine:
                 self.threat_level += 1 # mine detected
+
+        # set reveal text
+        if self.threat_level == 0:
+            self.reveal_text = ''
+        else:
+            self.reveal_text = str(self.threat_level)
 
     def chain_reveal(self):
         # check if this is the start of the game; if it is, signal that the game has become active
@@ -95,18 +103,13 @@ class Tile(Button):
         
         # decide what the button text will be; if this is a mine, increase the casualty count by updating the info panel
         if self.is_mine:
-            button_text = Tile.MINE # set button text to mine
             self.master.master.update_info_panel(casualty=True) # increment casualties
-        elif self.master.master.game_active.is_set():
-            button_text = '' if self.threat_level == 0 else str(self.threat_level)
-        else:
-            button_text = Tile.AGENT
 
         # configure button
         self.config(
-            text=button_text,
+            text=self.reveal_text,
             state=DISABLED,
-            bg='#B0B0B0'
+            bg='#C0C0C0'
         )
 
     def mark_unmark(self, event):
@@ -207,21 +210,18 @@ class Minefield(ttk.Frame):
                 Tile(x, y, self, plant_mine, is_safe_spot).grid(column=x, row=y)
 
     def all_clear_march(self):
-        # initialize time variables
-        speed = 0.5
-        speedup_factor = 0.95
+        # initialize variables
+        speed = 0.02
 
         # iterate through all tiles in the minefield
         for tile in self.grid_slaves():
-            if tile.cget('state') != DISABLED and tile.cget('text') != Tile.FLAG:
-                time.sleep(speed)
-                speed *= speedup_factor
-                tile.reveal()
-                tile.update_idletasks()
+            time.sleep(speed)
+            tile.reveal()
+            tile.update_idletasks()
 
 class Info_Panel(ttk.Frame):
     def __init__(self, board: Tk):
-        ttk.Style().configure('Info_Panel.TFrame', background='black', ) # create custom style
+        ttk.Style().configure('Info_Panel.TFrame', background='black') # create custom style
         super().__init__(board, style='Info_Panel.TFrame') # call super constructor
 
         # create labels
@@ -254,6 +254,20 @@ class Info_Panel(ttk.Frame):
         self.duration.set('00:00:00')
         self.flags.set('0')
 
+class Agent_Panel(ttk.Frame):
+    AGENT = chr(0x26d1)
+
+    def __init__(self, board: Tk, num_agents: int):
+        ttk.Style().configure('Agent_Panel.TFrame', background='black') # create custom style
+        super().__init__(board, style='Info_Panel.TFrame') # call super constructor
+
+        # create title Label
+        Label(self, text='AGENTS', bg='#000000', fg='#00ff00').pack()
+
+        # create Label for each agent
+        for i in range(num_agents):
+            Label(self, text=Agent_Panel.AGENT, bg='#000000', fg='#00ff00').pack()
+
 class Board(Tk):
     def __init__(self, width: int, height: int, num_mines: int):
         # initialize instance variables
@@ -269,16 +283,20 @@ class Board(Tk):
 
         # create information panel
         self.info_panel = Info_Panel(self)
-        self.info_panel.pack(fill='x', expand=True)
+        self.info_panel.grid(row=0, column=0)
 
         # create minefield
         self.minefield = Minefield(self, width, height, num_mines) # create Minefield Frame in Board
         self.minefield.load() # call load function on Minefield instance after initialization (required)
-        self.minefield.pack(padx=20)
+        self.minefield.grid(row=1, column=0, padx=10)
+
+        # create Agent Panel
+        self.agent_panel = Agent_Panel(self, 10)
+        self.agent_panel.grid(row=1, column=1, padx=10)
 
         # create big button
         self.big_button = Button(self, command=self.end_game, text="Signal 'All Clear!'")
-        self.big_button.pack(fill='x',expand=True, padx=200, pady=20)
+        self.big_button.grid(row=2, column=0, padx=200, pady=20)
 
         # create thread that will tick the time up each second
         self.clock = threading.Thread(target=self.run_clock, daemon=True) # create Thread
