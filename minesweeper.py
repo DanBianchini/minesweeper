@@ -4,7 +4,7 @@ from random import randint
 import time
 import threading
 
-class Tile(Button):
+class Tile(Label):
     FLAG = chr(0x2691)
     MINE = chr(0x26ab)
     PICKAXE = chr(0x26cf)
@@ -22,7 +22,6 @@ class Tile(Button):
         super().__init__(
             frm,
             text=Tile.PICKAXE if safe_spot else '',
-            command=self.do_nothing,
             width=2,
             height=1,
             disabledforeground='#ff0000' if self.is_mine else '#000000'
@@ -92,9 +91,6 @@ class Tile(Button):
                 else:
                     tile.reveal()
 
-    def do_nothing(self):
-        return
-
     def reveal(self):
         # if tile is already revealed, don't bother
         if self.cget('state') == DISABLED:
@@ -154,7 +150,8 @@ class Minefield(ttk.Frame):
         self.height = height
         self.num_mines = num_mines
 
-        super().__init__(board, padding=0) # call parent constructor function
+        ttk.Style().configure('Minefield.TFrame', background='black') # create custom style
+        super().__init__(board, padding=0, style='Minefield.TFrame') # call parent constructor function
 
     def load(self):
         # generate the minefield in the Frame
@@ -227,11 +224,11 @@ class Minefield(ttk.Frame):
                 is_safe_spot = ((x, y) == safe_spot)
 
                 # create the tile
-                Tile(x, y, self, plant_mine, is_safe_spot).grid(column=x, row=y)
+                Tile(x, y, self, plant_mine, is_safe_spot).grid(column=x, row=y, padx=1, pady=1)
 
     def all_clear_march(self):
         # initialize variables
-        speed = 0.02
+        speed = 0.01
 
         # iterate through all tiles in the minefield
         for tile in self.grid_slaves():
@@ -356,6 +353,7 @@ class Board(Tk):
 
     def end_game(self):
         self.game_active.clear() # signal the clock to stop
+        self.big_button.config(bg=self.BUTTON_DEFAULT_COLOR) # reset the button to its default color
 
         # reveal all tiles on the board one at a time
         self.minefield.all_clear_march()
