@@ -289,12 +289,12 @@ class Agent_Panel(ttk.Frame):
         Label(self, text='AGENTS', bg='#000000', fg='#00ff00').pack()
 
         # create Label for each agent
-        self.create_agents(num_agents)
+        self.create_agents()
 
-    def create_agents(self, num_agents: int):
+    def create_agents(self):
         # create Label for each agent
         self.agent_labels = [] # start with empty list that will store all agent Labels
-        for i in range(num_agents):
+        for i in range(self.start_num):
             self.agent_labels.append(Label(self, text=Agent_Panel.AGENT, bg='#000000', fg='#00ff00'))
             self.agent_labels[-1].pack()
 
@@ -302,8 +302,12 @@ class Agent_Panel(ttk.Frame):
         self.agent_labels.pop().destroy()
 
     def reset(self):
+        # destroy all old agents
+        for agent in self.agent_labels:
+            agent.destroy()
+
         # create Label for each agent
-        self.create_agents(self.start_num)
+        self.create_agents()
 
 class Board(Tk):
     def __init__(self, width: int, height: int, num_mines: int):
@@ -364,8 +368,6 @@ class Board(Tk):
 
         # reveal all tiles on the board one at a time
         self.minefield.all_clear_march()
-
-        # TODO: impose some sort of penalty for marking more tiles than needed
 
         # TODO: transform the big button to reset everything on press
 
