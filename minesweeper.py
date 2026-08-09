@@ -99,16 +99,24 @@ class Tile(Button):
         # check if tile is marked; if it is, don't reveal it and just exit the function
         if self.cget('text') == Tile.FLAG:
             return
+
+        board = self.master.master # get pointer to the board for easier access
         
         # decide what the button text will be; if this is a mine, increase the casualty count by updating the info panel
         if self.is_mine:
-            self.master.master.update_info_panel(casualty=True) # increment casualties
+            board.update_info_panel(casualty=True) # increment casualties
+
+            # if casualties + flags = num_mines, make the big button green
+            if board.check_totals():
+                board.big_button.config(bg=board.BUTTON_PASSED_COLOR)
+            else:
+                board.big_button.config(bg=board.BUTTON_DEFAULT_COLOR)
 
         # configure button
         self.config(
             text=self.reveal_text,
             state=DISABLED,
-            bg='#C0C0C0'
+            bg=board.BUTTON_REVEALED_COLOR
         )
 
     def mark_unmark(self, event):
@@ -116,15 +124,23 @@ class Tile(Button):
         if self.cget('state') == DISABLED:
             return
 
+        board = self.master.master # get pointer to the board for easier access
+
         # unmark tile if marked
         if self.cget('text') == Tile.FLAG:
             self.config(text='') # set tile text to blank
-            self.master.master.update_info_panel(flag_increment=False) # decrement flag count of Minefield master Frame
+            board.update_info_panel(flag_increment=False) # decrement flag count of Minefield master Frame
 
         # mark tile if unmarked
         else:
             self.config(text=Tile.FLAG) # set tile text to flag
-            self.master.master.update_info_panel(flag_increment=True) # increment flag count of Minefield master Frame
+            board.update_info_panel(flag_increment=True) # increment flag count of Minefield master Frame
+
+        # if casualties + flags = num_mines, make the big button green
+        if board.check_totals():
+            board.big_button.config(bg=board.BUTTON_PASSED_COLOR)
+        else:
+            board.big_button.config(bg=board.BUTTON_DEFAULT_COLOR)
 
 class Minefield(ttk.Frame):
     def __init__(self, board: Tk, width: int, height: int, num_mines: int):
@@ -218,8 +234,13 @@ class Minefield(ttk.Frame):
             time.sleep(speed)
             tile.reveal()
 
+            # TODO: Should this count against the player? Maybe as a casualty...
+            # if tile is marked but is not a mine, make the flag red
+            if tile.cget('text') == Tile.FLAG and not tile.is_mine:
+                tile.config(fg='#ff0000')
+
             # change the tile color to show that it has been passed
-            tile.config(bg='#bbffbb')
+            tile.config(bg=self.master.BUTTON_PASSED_COLOR)
             tile.update_idletasks()
 
 class Info_Panel(ttk.Frame):
@@ -306,6 +327,11 @@ class Board(Tk):
         self.big_button = Button(self, command=self.end_game, text="Signal 'All Clear!'")
         self.big_button.grid(row=2, column=0, padx=200, pady=20)
 
+        # button/tile colors
+        self.BUTTON_DEFAULT_COLOR = self.big_button.cget('bg') # store default bg color for later
+        self.BUTTON_PASSED_COLOR = '#88ffbb'
+        self.BUTTON_REVEALED_COLOR = '#cccccc'
+
         # create thread that will tick the time up each second
         self.clock = threading.Thread(target=self.run_clock, daemon=True) # create Thread
         self.clock.start() # start clock Thread
@@ -358,6 +384,9 @@ class Board(Tk):
             else:
                 self.flags -= 1
                 self.info_panel.flags.set(str(self.flags))
+
+    def check_totals(self) -> bool:
+        return ((self.casualties + self.flags) == self.minefield.num_mines)
 
     def on_close(self):
         self.game_active.clear()
