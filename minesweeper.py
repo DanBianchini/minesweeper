@@ -102,7 +102,7 @@ class Tile(Label):
 
         board = self.master.master # get pointer to the board for easier access
         
-        # decide what the button text will be; if this is a mine, increase the casualty count by updating the info panel
+        # increase the casualty count by updating the info panel
         if self.is_mine:
             board.update_info_panel(casualty=True) # increment casualties
 
@@ -333,8 +333,8 @@ class Board(Tk):
         self.minefield.grid(row=1, column=0, padx=10)
 
         # create Agent Panel
-        self.agent_panel = Agent_Panel(self, 10)
-        self.agent_panel.grid(row=1, column=1, padx=10)
+        #self.agent_panel = Agent_Panel(self, 10)
+        #self.agent_panel.grid(row=1, column=1, padx=10)
 
         # create big button
         self.big_button = Button(self, command=self.end_game, text="Signal 'All Clear!'")
