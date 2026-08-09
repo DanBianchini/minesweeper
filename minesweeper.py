@@ -22,12 +22,13 @@ class Tile(Button):
         super().__init__(
             frm,
             text=Tile.PICKAXE if safe_spot else '',
-            command=self.chain_reveal,
+            command=self.do_nothing,
             width=2,
             height=1,
             disabledforeground='#ff0000' if self.is_mine else '#000000'
         )
 
+        self.bind('<Button-1>', self.chain_reveal)
         self.bind('<Button-3>', self.mark_unmark)
 
     def generate_adjacent(self):
@@ -75,7 +76,7 @@ class Tile(Button):
         else:
             self.reveal_text = str(self.threat_level)
 
-    def chain_reveal(self):
+    def chain_reveal(self, event):
         # check if this is the start of the game; if it is, signal that the game has become active
         if not self.master.master.game_active.is_set():
             self.master.master.start_game()
@@ -87,9 +88,12 @@ class Tile(Button):
         if self.threat_level == 0:
             for tile in self.adjacent:
                 if tile.threat_level == 0 and tile.cget('state') != DISABLED:
-                    tile.chain_reveal()
+                    tile.chain_reveal(event)
                 else:
                     tile.reveal()
+
+    def do_nothing(self):
+        return
 
     def reveal(self):
         # if tile is already revealed, don't bother
@@ -107,10 +111,11 @@ class Tile(Button):
             board.update_info_panel(casualty=True) # increment casualties
 
             # if casualties + flags = num_mines, make the big button green
-            if board.check_totals():
-                board.big_button.config(bg=board.BUTTON_PASSED_COLOR)
-            else:
-                board.big_button.config(bg=board.BUTTON_DEFAULT_COLOR)
+            if board.game_active.is_set():
+                if board.check_totals():
+                    board.big_button.config(bg=board.BUTTON_PASSED_COLOR)
+                else:
+                    board.big_button.config(bg=board.BUTTON_DEFAULT_COLOR)
 
         # configure button
         self.config(
