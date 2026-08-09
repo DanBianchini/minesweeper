@@ -356,8 +356,7 @@ class Board(Tk):
         self.game_active.clear() # event to signal to the clock thread when to be actively counting; should already be cleared at this point, just being safe
         self.info_panel.reset() # reset info panel
         self.minefield.reset() # reset the minefield
-
-        # TODO: reset big button
+        self.big_button.config(text="Signal 'All Clear!'", command=self.end_game) # reset big button
 
     def start_game(self):
         self.game_active.set() # event to signal to the clock thread when to be actively counting
@@ -365,11 +364,8 @@ class Board(Tk):
     def end_game(self):
         self.game_active.clear() # signal the clock to stop
         self.big_button.config(bg=self.BUTTON_DEFAULT_COLOR) # reset the button to its default color
-
-        # reveal all tiles on the board one at a time
-        self.minefield.all_clear_march()
-
-        # TODO: transform the big button to reset everything on press
+        self.minefield.all_clear_march() # reveal all tiles on the board one at a time
+        self.big_button.config(text='Reset Board', command=self.reset) # transform the big button to reset everything on press
 
     def run_clock(self):
         while True:
