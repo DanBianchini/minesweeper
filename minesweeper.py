@@ -9,11 +9,11 @@ class Tile(Label):
     MINE = chr(0x26ab)
     PICKAXE = chr(0x26cf)
 
-    def __init__(self, x: int, y: int, frm: ttk.Frame, plant_mine: bool = False, safe_spot = False):
+    def __init__(self, x: int, y: int, frm: ttk.Frame):
         # initialize instance variables
         self.x = x
         self.y = y
-        self.is_mine = plant_mine
+        self.is_mine = False        # initialize to False; will be set if necessary during minefield generation
         self.threat_level = None    # initialize to None; will be calculated after the entire minefield has been generated
         self.adjacent = None        # initialize to None; will be calculated after the entire minefield has been generated
         self.reveal_text = None     # initialize to None; will be calculated after the entire minefield has been generated
@@ -21,12 +21,12 @@ class Tile(Label):
         # call parent constructor
         super().__init__(
             frm,
-            text=Tile.PICKAXE if safe_spot else '',
+            text='',
             width=2,
-            height=1,
-            disabledforeground='#ff0000' if self.is_mine else '#000000'
+            height=1
         )
 
+        # bind mouse click events
         self.bind('<Button-1>', self.chain_reveal)
         self.bind('<Button-3>', self.mark_unmark)
 
@@ -143,6 +143,21 @@ class Tile(Label):
         else:
             board.big_button.config(bg=board.BUTTON_DEFAULT_COLOR)
 
+    def reset(self):
+        # reset button
+        self.config(
+            state=NORMAL,
+            text='',
+            fg='#000000',
+            disabledforeground='#000000'
+        )
+
+        # reset variables
+        self.is_mine = False        # initialize to False; will be set if necessary during minefield generation
+        self.threat_level = None    # initialize to None; will be calculated after the entire minefield has been generated
+        self.adjacent = None        # initialize to None; will be calculated after the entire minefield has been generated
+        self.reveal_text = None     # initialize to None; will be calculated after the entire minefield has been generated
+
 class Minefield(ttk.Frame):
     def __init__(self, board: Tk, width: int, height: int, num_mines: int):
         # initialize instance variables
@@ -155,8 +170,10 @@ class Minefield(ttk.Frame):
 
     def load(self):
         # generate the minefield in the Frame
-        safe_spot = (int(self.width/2), int(self.height/2))
-        self.plant_mines(safe_spot, self.generate_minefield_random(safe_spot))
+        safe_spot = (int(self.width/2), int(self.height/2)) # decide the safe spot; for now, putting it in the middle of the minefield is good enough
+        self.create_tiles()
+        self.plant_mines(Minefield.generate_random_coords(self.width, self.height, self.num_mines, safe_spot)) # plant the mines randomly
+        self.grid_slaves(column=safe_spot[0], row=safe_spot[1])[0].config(text=Tile.PICKAXE) # mark the safe spot
 
         # iterate over all tiles
         for tile in self.grid_slaves():
@@ -164,36 +181,27 @@ class Minefield(ttk.Frame):
             tile.calculate_threat_level()
 
     def reset(self):
-        # TODO: implement
-        pass
+        # iterate thru all tiles
+        for tile in self.grid_slaves():
+            tile.reset()
 
-    def generate_minefield_test(self, safe_spot: tuple[int, int]) -> tuple[tuple[int, int]]:
-        result = [] # will store coordinate pairs
+        # TODO: re-plant mines
 
-        # generate simple coordinates
+    def create_tiles(self):
+        # create tile Buttons in Frame
         for y in range(self.height):
             for x in range(self.width):
+                Tile(x, y, self).grid(column=x, row=y, padx=1, pady=1)
 
-                # check if done
-                if len(result) == self.num_mines:
-                    return tuple(result)
-
-                # skip safe spot
-                if (x, y) == safe_spot:
-                    continue
-
-                # plant mines starting from the upper left corner going to the right until mines run out
-                result.append((x, y))
-
-    def generate_minefield_random(self, safe_spot: tuple[int, int]) -> tuple[tuple[int, int]]:
+    def generate_random_coords(width: int, height: int, num_mines: int, safe_spot: tuple[int, int]) -> tuple[tuple[int, int]]:
             result = [] # will store coordinate pairs
             mines_planted = 0 # will store the # of mines planted
             
             # generate coordinates
-            while mines_planted < self.num_mines:
+            while mines_planted < num_mines:
 
                 # generate random coordinates
-                coords = (randint(0, self.width - 1), randint(0, self.height - 1))
+                coords = (randint(0, width - 1), randint(0, height - 1))
 
                 # if this is the safe spot (or adjacent to it), try a different spot
                 if (coords[0] in (safe_spot[0] - 1, safe_spot[0], safe_spot[0] + 1)) and (coords[1] in (safe_spot[1] - 1, safe_spot[1], safe_spot[1] + 1)):
@@ -207,24 +215,12 @@ class Minefield(ttk.Frame):
             # return the coordinates
             return tuple(result)
 
-    def plant_mines(self, safe_spot: tuple[int, int], mine_coords: tuple[tuple[int, int]]):
-        mines_planted = 0 # keep track of how many mines have been planted
-        
-        # create tile buttons in frame
-        for y in range(self.height):
-            for x in range(self.width):
-
-                # if these coordinates are one of the pairs listed, plant a mine
-                plant_mine = False
-                if (x, y) in mine_coords:
-                    plant_mine = True
-                    mines_planted += 1
-
-                # figure out if this is the safe spot
-                is_safe_spot = ((x, y) == safe_spot)
-
-                # create the tile
-                Tile(x, y, self, plant_mine, is_safe_spot).grid(column=x, row=y, padx=1, pady=1)
+    def plant_mines(self, mine_coords: tuple[tuple[int, int]]):
+        # iterate thru mine_coords, plant mines
+        for coord in mine_coords:
+            tile = self.grid_slaves(column=coord[0], row=coord[1])[0] # grab tile for easy access
+            tile.is_mine = True
+            tile.config(disabledforeground='#ff0000')
 
     def all_clear_march(self):
         # initialize variables
