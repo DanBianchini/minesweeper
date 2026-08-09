@@ -8,7 +8,6 @@ class Tile(Button):
     FLAG = chr(0x2691)
     MINE = chr(0x26ab)
     PICKAXE = chr(0x26cf)
-    AGENT = chr(0x26d1)
 
     def __init__(self, x: int, y: int, frm: ttk.Frame, plant_mine: bool = False, safe_spot = False):
         # initialize instance variables
@@ -215,8 +214,12 @@ class Minefield(ttk.Frame):
 
         # iterate through all tiles in the minefield
         for tile in self.grid_slaves():
+            # reveal the tile after an amount of time
             time.sleep(speed)
             tile.reveal()
+
+            # change the tile color to show that it has been passed
+            tile.config(bg='#bbffbb')
             tile.update_idletasks()
 
 class Info_Panel(ttk.Frame):
