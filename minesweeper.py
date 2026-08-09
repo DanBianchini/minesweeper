@@ -149,7 +149,8 @@ class Tile(Label):
             state=NORMAL,
             text='',
             fg='#000000',
-            disabledforeground='#000000'
+            disabledforeground='#000000',
+            bg=self.master.master.BUTTON_DEFAULT_COLOR
         )
 
         # reset variables
@@ -171,7 +172,6 @@ class Minefield(ttk.Frame):
     def load(self):
         # generate the minefield in the Frame
         safe_spot = (int(self.width/2), int(self.height/2)) # decide the safe spot; for now, putting it in the middle of the minefield is good enough
-        self.create_tiles()
         self.plant_mines(Minefield.generate_random_coords(self.width, self.height, self.num_mines, safe_spot)) # plant the mines randomly
         self.grid_slaves(column=safe_spot[0], row=safe_spot[1])[0].config(text=Tile.PICKAXE) # mark the safe spot
 
@@ -185,7 +185,7 @@ class Minefield(ttk.Frame):
         for tile in self.grid_slaves():
             tile.reset()
 
-        # TODO: re-plant mines
+        self.load() # reload
 
     def create_tiles(self):
         # create tile Buttons in Frame
@@ -282,10 +282,16 @@ class Agent_Panel(ttk.Frame):
     def __init__(self, board: Tk, num_agents: int):
         ttk.Style().configure('Agent_Panel.TFrame', background='black') # create custom style
         super().__init__(board, style='Info_Panel.TFrame') # call super constructor
+        self.start_num = num_agents # store starting number of agents
+        self.agent_labels = None # initialize to None
 
         # create title Label
         Label(self, text='AGENTS', bg='#000000', fg='#00ff00').pack()
 
+        # create Label for each agent
+        self.create_agents(num_agents)
+
+    def create_agents(self, num_agents: int):
         # create Label for each agent
         self.agent_labels = [] # start with empty list that will store all agent Labels
         for i in range(num_agents):
@@ -294,6 +300,10 @@ class Agent_Panel(ttk.Frame):
 
     def remove_agent(self):
         self.agent_labels.pop().destroy()
+
+    def reset(self):
+        # create Label for each agent
+        self.create_agents(self.start_num)
 
 class Board(Tk):
     def __init__(self, width: int, height: int, num_mines: int):
@@ -314,6 +324,7 @@ class Board(Tk):
 
         # create minefield
         self.minefield = Minefield(self, width, height, num_mines) # create Minefield Frame in Board
+        self.minefield.create_tiles() # create the tiles on the minefield (required)
         self.minefield.load() # call load function on Minefield instance after initialization (required)
         self.minefield.grid(row=1, column=0, padx=10)
 
