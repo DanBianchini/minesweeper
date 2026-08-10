@@ -5,9 +5,16 @@ import time
 import threading
 
 class Tile(Label):
+    # special characters
     FLAG = chr(0x2691)
     MINE = chr(0x26ab)
     PICKAXE = chr(0x26cf)
+
+    # colors
+    FG_COLOR = '#1a1abb'
+    REVEALED_COLOR = '#cccccc'
+    DEFAULT_COLOR = 'SystemButtonFace'
+    MARCH_COLOR = '#88ffbb'
 
     def __init__(self, x: int, y: int, frm: ttk.Frame):
         # initialize instance variables
@@ -23,7 +30,9 @@ class Tile(Label):
             frm,
             text='',
             width=2,
-            height=1
+            height=1,
+            disabledforeground='#000000',
+            fg=Tile.FG_COLOR
         )
 
         # bind mouse click events
@@ -109,15 +118,15 @@ class Tile(Label):
             # if casualties + flags = num_mines, make the big button green
             if board.game_active.is_set():
                 if board.check_totals():
-                    board.big_button.config(bg=board.BUTTON_PASSED_COLOR)
+                    board.big_button.config(bg=Tile.MARCH_COLOR)
                 else:
-                    board.big_button.config(bg=board.BUTTON_DEFAULT_COLOR)
+                    board.big_button.config(bg=Tile.DEFAULT_COLOR)
 
         # configure button
         self.config(
             text=self.reveal_text,
             state=DISABLED,
-            bg=board.BUTTON_REVEALED_COLOR
+            bg=Tile.REVEALED_COLOR
         )
 
     def mark_unmark(self, event):
@@ -139,18 +148,18 @@ class Tile(Label):
 
         # if casualties + flags = num_mines, make the big button green
         if board.check_totals():
-            board.big_button.config(bg=board.BUTTON_PASSED_COLOR)
+            board.big_button.config(bg=Tile.MARCH_COLOR)
         else:
-            board.big_button.config(bg=board.BUTTON_DEFAULT_COLOR)
+            board.big_button.config(bg=Tile.DEFAULT_COLOR)
 
     def reset(self):
         # reset button
         self.config(
             state=NORMAL,
             text='',
-            fg='#000000',
             disabledforeground='#000000',
-            bg=self.master.master.BUTTON_DEFAULT_COLOR
+            fg=Tile.FG_COLOR,
+            bg=Tile.DEFAULT_COLOR
         )
 
         # reset variables
@@ -168,6 +177,7 @@ class Minefield(ttk.Frame):
 
         ttk.Style().configure('Minefield.TFrame', background='black') # create custom style
         super().__init__(board, padding=0, style='Minefield.TFrame') # call parent constructor function
+        self.create_tiles()
 
     def load(self):
         # generate the minefield in the Frame
@@ -224,7 +234,7 @@ class Minefield(ttk.Frame):
 
     def all_clear_march(self):
         # initialize variables
-        speed = 0.01
+        speed = 0.003
 
         # iterate through all tiles in the minefield
         for tile in self.grid_slaves():
@@ -238,8 +248,23 @@ class Minefield(ttk.Frame):
                 tile.config(fg='#ff0000')
 
             # change the tile color to show that it has been passed
-            tile.config(bg=self.master.BUTTON_PASSED_COLOR)
+            tile.config(bg=Tile.MARCH_COLOR)
             tile.update_idletasks()
+
+        # iterate back thru all tiles and change color back at a faster speed than before
+        for tile in self.grid_slaves():
+            # wait for less time than before
+            time.sleep(speed / 5)
+
+            # if tile is disabled, go with the revealed bg color
+            if tile.cget('state') == DISABLED:
+                tile.config(bg=Tile.REVEALED_COLOR)
+
+            # if tile hasn't been revealed (is marked), go with the default color
+            else:
+                tile.config(bg=Tile.DEFAULT_COLOR)
+
+            tile.update_idletasks() # update idle tasks so changes appear immediately
 
 class Info_Panel(ttk.Frame):
     def __init__(self, board: Tk):
@@ -276,39 +301,6 @@ class Info_Panel(ttk.Frame):
         self.duration.set('00:00:00')
         self.flags.set('0')
 
-class Agent_Panel(ttk.Frame):
-    AGENT = chr(0x26d1)
-
-    def __init__(self, board: Tk, num_agents: int):
-        ttk.Style().configure('Agent_Panel.TFrame', background='black') # create custom style
-        super().__init__(board, style='Info_Panel.TFrame') # call super constructor
-        self.start_num = num_agents # store starting number of agents
-        self.agent_labels = None # initialize to None
-
-        # create title Label
-        Label(self, text='AGENTS', bg='#000000', fg='#00ff00').pack()
-
-        # create Label for each agent
-        self.create_agents()
-
-    def create_agents(self):
-        # create Label for each agent
-        self.agent_labels = [] # start with empty list that will store all agent Labels
-        for i in range(self.start_num):
-            self.agent_labels.append(Label(self, text=Agent_Panel.AGENT, bg='#000000', fg='#00ff00'))
-            self.agent_labels[-1].pack()
-
-    def remove_agent(self):
-        self.agent_labels.pop().destroy()
-
-    def reset(self):
-        # destroy all old agents
-        for agent in self.agent_labels:
-            agent.destroy()
-
-        # create Label for each agent
-        self.create_agents()
-
 class Board(Tk):
     def __init__(self, width: int, height: int, num_mines: int):
         # initialize instance variables
@@ -328,22 +320,12 @@ class Board(Tk):
 
         # create minefield
         self.minefield = Minefield(self, width, height, num_mines) # create Minefield Frame in Board
-        self.minefield.create_tiles() # create the tiles on the minefield (required)
         self.minefield.load() # call load function on Minefield instance after initialization (required)
         self.minefield.grid(row=1, column=0, padx=10)
-
-        # create Agent Panel
-        #self.agent_panel = Agent_Panel(self, 10)
-        #self.agent_panel.grid(row=1, column=1, padx=10)
 
         # create big button
         self.big_button = Button(self, command=self.end_game, text="Signal 'All Clear!'")
         self.big_button.grid(row=2, column=0, padx=200, pady=20)
-
-        # button/tile colors
-        self.BUTTON_DEFAULT_COLOR = self.big_button.cget('bg') # store default bg color for later
-        self.BUTTON_PASSED_COLOR = '#88ffbb'
-        self.BUTTON_REVEALED_COLOR = '#cccccc'
 
         # create thread that will tick the time up each second
         self.clock = threading.Thread(target=self.run_clock, daemon=True) # create Thread
@@ -363,9 +345,9 @@ class Board(Tk):
 
     def end_game(self):
         self.game_active.clear() # signal the clock to stop
-        self.big_button.config(bg=self.BUTTON_DEFAULT_COLOR) # reset the button to its default color
+        self.big_button.config(bg=Tile.DEFAULT_COLOR, state=DISABLED) # reset the button to its default color & disable it
         self.minefield.all_clear_march() # reveal all tiles on the board one at a time
-        self.big_button.config(text='Reset Board', command=self.reset) # transform the big button to reset everything on press
+        self.big_button.config(text='Reset Board', command=self.reset, state=ACTIVE) # transform the big button to reset everything on press & re-enable it
 
     def run_clock(self):
         while True:
@@ -401,5 +383,5 @@ class Board(Tk):
         self.destroy()
 
 if __name__ == "__main__":
-    board = Board(25, 25, 100)
+    board = Board(100, 40, 500)
     board.mainloop()
