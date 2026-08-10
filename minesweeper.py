@@ -85,14 +85,20 @@ class Tile(Label):
             self.reveal_text = str(self.threat_level)
 
     def chain_reveal(self, event):
-        # check if this is the start of the game; if it is, signal that the game has become active
-        if not self.master.master.game_active.is_set():
-            self.master.master.start_game()
+        board = self.master.master # grab pointer to Board for easier access
+
+        # depending on game state, exit function immediately (do not allow left-click to reveal tiles)
+        if board.game_state in (GameState.END, GameState.PAUSED):
+            return
+
+        # check if the game is in the ready state; if it is, start the game
+        if board.game_state == GameState.READY:
+            board.start_game()
 
         # reveal this tile
         self.reveal()
 
-        # if this tile is safe, reveal the adjacent tiles
+        # if this tile is safe, do some recursive magic
         if self.threat_level == 0:
             for tile in self.adjacent:
                 if tile.threat_level == 0 and tile.cget('state') != DISABLED:
@@ -115,12 +121,12 @@ class Tile(Label):
         if self.is_mine:
             board.update_info_panel(casualty=True) # increment casualties
 
-            # if casualties + flags = num_mines, make the big button green
-            if board.game_active.is_set():
+            # if casualties + flags = num_mines, make the 'all clear' button green
+            if board.game_state == GameState.ACTIVE:
                 if board.check_totals():
-                    board.big_button.config(bg=Tile.MARCH_COLOR)
+                    board.all_clear_button.config(bg=Tile.MARCH_COLOR)
                 else:
-                    board.big_button.config(bg=Tile.DEFAULT_COLOR)
+                    board.all_clear_button.config(bg=Tile.DEFAULT_COLOR)
 
         # configure button
         self.config(
@@ -146,14 +152,14 @@ class Tile(Label):
             self.config(text=Tile.FLAG) # set tile text to flag
             board.update_info_panel(flag_increment=True) # increment flag count of Minefield master Frame
 
-        # if casualties + flags = num_mines, make the big button green
+        # if casualties + flags = num_mines, make the 'all clear' button green
         if board.check_totals():
-            board.big_button.config(bg=Tile.MARCH_COLOR)
+            board.all_clear_button.config(bg=Tile.MARCH_COLOR)
         else:
-            board.big_button.config(bg=Tile.DEFAULT_COLOR)
+            board.all_clear_button.config(bg=Tile.DEFAULT_COLOR)
 
     def reset(self):
-        # reset button
+        # reset tile button configuration
         self.config(
             state=NORMAL,
             text='',
@@ -301,13 +307,20 @@ class Info_Panel(ttk.Frame):
         self.duration.set('00:00:00')
         self.flags.set('0')
 
+class GameState:
+    READY = 'ready'
+    ACTIVE = 'active'
+    PAUSED = 'paused'
+    END = 'end'
+
 class Board(Tk):
     def __init__(self, width: int, height: int, num_mines: int):
         # initialize instance variables
         self.casualties = 0 # the # of casualties that have ocurred (each mine tile revealed)
         self.duration = 0 # time in seconds since game has started
         self.flags = 0 # the # of flags currently placed
-        self.game_active = threading.Event() # event to signal to the clock thread when to be actively counting
+        self.game_state = GameState.READY # initialize the game state to 'ready'
+        self.clock_active = threading.Event() # event to signal to the clock thread when to be actively counting
 
         super().__init__() # call super constructor
         self.title("Minesweeper") # set title bar text
@@ -316,16 +329,20 @@ class Board(Tk):
 
         # create information panel
         self.info_panel = Info_Panel(self)
-        self.info_panel.grid(row=0, column=0, sticky='ew')
+        self.info_panel.grid(row=0, column=0, sticky='ew', columnspan=2)
 
         # create minefield
         self.minefield = Minefield(self, width, height, num_mines) # create Minefield Frame in Board
         self.minefield.load() # call load function on Minefield instance after initialization (required)
-        self.minefield.grid(row=1, column=0, padx=10)
+        self.minefield.grid(row=1, column=0, padx=10, columnspan=2)
 
-        # create big button
-        self.big_button = Button(self, command=self.end_game, text="Signal 'All Clear!'")
-        self.big_button.grid(row=2, column=0, padx=200, pady=20)
+        # create 'all clear' button
+        self.all_clear_button = Button(self, command=self.end_game, text='Signal "All Clear!"', state=DISABLED)
+        self.all_clear_button.grid(row=2, column=0, padx=30, pady=20, sticky='e')
+
+        # create 'reset' button
+        self.reset_button = Button(self, command=self.reset, text="Reset Board")
+        self.reset_button.grid(row=2, column=1, padx=30, pady=20, sticky='w')
 
         # create thread that will tick the time up each second
         self.clock = threading.Thread(target=self.run_clock, daemon=True) # create Thread
@@ -335,24 +352,27 @@ class Board(Tk):
         self.casualties = 0 # the # of casualties that have ocurred (each mine tile revealed)
         self.duration = 0 # time in seconds since game has started
         self.flags = 0 # the # of flags currently placed
-        self.game_active.clear() # event to signal to the clock thread when to be actively counting; should already be cleared at this point, just being safe
+        self.game_state = GameState.READY # set game state to 'ready'
+        self.clock_active.clear() # event to signal to the clock thread when to be actively counting
         self.info_panel.reset() # reset info panel
         self.minefield.reset() # reset the minefield
-        self.big_button.config(text="Signal 'All Clear!'", command=self.end_game) # reset big button
+        self.all_clear_button.config(bg=Tile.DEFAULT_COLOR, state=DISABLED) # reset the button to its default color & disable it
 
     def start_game(self):
-        self.game_active.set() # event to signal to the clock thread when to be actively counting
+        self.game_state = GameState.ACTIVE # set the game state to 'active'
+        self.clock_active.set() # signal to the clock to start counting
+        self.all_clear_button.config(state=ACTIVE)
 
     def end_game(self):
-        self.game_active.clear() # signal the clock to stop
-        self.big_button.config(bg=Tile.DEFAULT_COLOR, state=DISABLED) # reset the button to its default color & disable it
+        self.game_state = GameState.END # set game state to 'end'
+        self.clock_active.clear() # signal the clock to stop
+        self.all_clear_button.config(bg=Tile.DEFAULT_COLOR, state=DISABLED) # reset the button to its default color & disable it
         self.minefield.all_clear_march() # reveal all tiles on the board one at a time
-        self.big_button.config(text='Reset Board', command=self.reset, state=ACTIVE) # transform the big button to reset everything on press & re-enable it
 
     def run_clock(self):
         while True:
             time.sleep(1)
-            if self.game_active.is_set():
+            if self.clock_active.is_set():
                 self.duration += 1 # increment
                 self.info_panel.duration.set(time.strftime('%H:%M:%S', time.gmtime(self.duration)))
 
@@ -379,7 +399,7 @@ class Board(Tk):
         return ((self.casualties + self.flags) == self.minefield.num_mines)
 
     def on_close(self):
-        self.game_active.clear()
+        self.clock_active.clear()
         self.destroy()
 
 if __name__ == "__main__":
