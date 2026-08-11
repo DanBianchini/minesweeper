@@ -244,7 +244,7 @@ class Minefield(ttk.Frame):
 
     def all_clear_march(self):
         # initialize variables
-        speed = 0.003
+        speed = 0.001
 
         # iterate through all tiles in the minefield
         for tile in self.grid_slaves():
@@ -261,10 +261,10 @@ class Minefield(ttk.Frame):
             tile.config(bg=Tile.MARCH_COLOR)
             tile.update_idletasks()
 
-        # iterate back thru all tiles and change color back at a faster speed than before
+        # iterate back thru all tiles and change color back
         for tile in self.grid_slaves():
-            # wait for less time than before
-            time.sleep(speed / 5)
+            # wait for same time as before
+            time.sleep(speed)
 
             # if tile is disabled, go with the revealed bg color
             if tile.cget('state') == DISABLED:
