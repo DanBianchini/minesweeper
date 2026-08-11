@@ -1,32 +1,35 @@
 from tkinter import *
-from board import Tile, Dimensions
+from board import Tile, Data
 
 def get_title_art():
     with open('title_art', encoding='utf-8') as f:
         return f.read()
 
-class DataEntry(Frame):
-    def __init__(self, window: Tk, name: str):
-        # call parent constructor
-        super().__init__(
-            window,
-            borderwidth=1,
-            relief='solid'
-        )
-
+class DataField:
+    def __init__(self, frm: Frame, row: int, name: str):
         # create field name label
-        Label(self, text= name + ':', padx=5, pady=5).grid(column=0, row=0, sticky='e')
+        Label(
+            frm,
+            text= name + ':',
+            padx=5,
+            pady=5
+        ).grid(column=0, row=row, sticky='e')
 
         # create data entry box
-        self.data_entry = Entry(self, width=5)
-        self.data_entry.grid(column=1, row=0, sticky='ew')
+        self.data_entry = Entry(frm, width=5)
+        self.data_entry.grid(column=1, row=row, sticky='ew')
 
         # create error message display label
         self.error_message = StringVar()
         self.error_message.set('')
-        Label(self, textvariable=self.error_message, fg='#ff0000', width=30).grid(column=2, row=0, sticky='w')
+        Label(
+            frm,
+            textvariable=self.error_message,
+            fg='#ff0000',
+            width=30
+        ).grid(column=2, row=row, sticky='w')
 
-    def get_info(self):
+    def get_info(self) -> int:
         try:
             self.error_message.set('')
             return int(self.data_entry.get())
@@ -34,18 +37,47 @@ class DataEntry(Frame):
             self.error_message.set("Unable to convert to an integer")
             return None
 
+class DataEntry(Frame):
+    def __init__(self, window: Tk, *field_names: str):
+        # call parent constructor
+        super().__init__(
+            window,
+            borderwidth=1,
+            relief='solid'
+        )
+
+        # create DataFields
+        self.data_fields = []
+        for name in field_names:
+            self.data_fields.append(DataField(self, len(self.data_fields) + 1, name))
+
+    def get_info(self) -> tuple:
+        result = [] # initialize result with empty list
+        
+        # iterate thru data entries, get info
+        for data_entry in self.data_fields:
+            result.append(data_entry.get_info())
+
+        # if any of the results were None, exit the function
+        if None in result:
+            return None
+
+        # if we made it to this point, convert results to tuple and return
+        return tuple(result)
+
 class ConfigureWindow(Tk):
     # color class variables
     PRIMARY_COLOR = Tile.DEFAULT_COLOR
     SECONDARY_COLOR = Tile.FG_COLOR
 
-    def __init__(self, dimensions: Dimensions):
-        # setup window
+    def __init__(self, data: list):
+        # set up window
         super().__init__()
         self.title('Minefield Setup')
         self.config(bg=ConfigureWindow.PRIMARY_COLOR)
+        self.protocol('WM_DELETE_WINDOW', self.on_close)
 
-        self.dim = dimensions # keep a pointer to the minesweeper board
+        self.data = data # keep a pointer to the Data object supplied
 
         # create Title Art Label
         Label(
@@ -61,10 +93,8 @@ class ConfigureWindow(Tk):
         ).grid(column=0, row=0, padx=20, pady=20)
 
         # create data entry boxes
-        self.data_entries = [] # initialize with empty list
-        for name in ('Width', 'Height', 'Mine Count'):
-            self.data_entries.append(DataEntry(self, name))
-            self.data_entries[-1].grid(column=0, row=len(self.data_entries), padx=5, pady=5)
+        self.data_entry = DataEntry(self, 'Width', 'Height', 'Mine Count')
+        self.data_entry.grid(column=0, row=1, padx=10, pady=10)
 
         # create button at bottom
         Button(
@@ -76,22 +106,21 @@ class ConfigureWindow(Tk):
         ).grid(column=0, row=4, pady=10)
 
     def finalize(self):
-        result = [] # initialize result with empty list
+        data = self.data_entry.get_info() # get data tuple from data entry Frame
 
-        # iterate thru data entries, get info
-        for data_entry in self.data_entries:
-            result.append(data_entry.get_info())
+        # if data is None, don't go through with the finalization
+        if data is None:
+            return
+        
+        self.data.update(*data) # inject the result into the data object and close this window
+        self.destroy() # close this window
 
-        # if any of the results were None, exit the function
-        if None in result:
-            return None
-
-        # if we made it to this point, inject the result into the Dimensions object and close this window
-        self.dim.update(*tuple(result))
+    def on_close(self):
+        self.data.update()
         self.destroy()
 
 if __name__ == '__main__':
-    dim = Dimensions()
-    cw = ConfigureWindow(dim)
+    data = Data()
+    cw = ConfigureWindow(data)
     cw.mainloop()
-    print(f"Width: {dim.width}\nHeight: {dim.height}\nMine Count: {dim.mine_count}")
+    print(data.get())

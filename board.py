@@ -127,6 +127,7 @@ class Tile(Label):
                     board.all_clear_button.config(bg=Tile.MARCH_COLOR)
                 else:
                     board.all_clear_button.config(bg=Tile.DEFAULT_COLOR)
+                board.all_clear_button.update_idletasks()
 
         # configure button
         self.config(
@@ -161,6 +162,7 @@ class Tile(Label):
             board.all_clear_button.config(bg=Tile.MARCH_COLOR)
         else:
             board.all_clear_button.config(bg=Tile.DEFAULT_COLOR)
+        board.all_clear_button.update_idletasks()
 
     def reset(self):
         # reset tile button configuration
@@ -244,7 +246,7 @@ class Minefield(ttk.Frame):
 
     def all_clear_march(self):
         # initialize variables
-        speed = 0.001
+        speed = 0.0003
 
         # iterate through all tiles in the minefield
         for tile in self.grid_slaves():
@@ -327,27 +329,24 @@ class GameState:
     PAUSED = 'paused'
     END = 'end'
 
-class Dimensions:
-    def __init__(self, width: int = None, height: int = None, mine_count: int = None):
-        self.width = width
-        self.height = height
-        self.mine_count = mine_count
+class Data:
+    def __init__(self, *data):
+        self.data = data
 
-    def update(self, width: int = None, height: int = None, mine_count: int = None):
-        # update width
-        if width is not None:
-            self.width = width
+    def update(self, *data):
+        self.data = data
 
-        # update height
-        if height is not None:
-            self.height = height
+    def get(self):
+        return self.data
 
-        # update mine_count
-        if mine_count is not None:
-            self.mine_count = mine_count
+    def __str__(self):
+        return str(self.data)
+
+    def __len__(self):
+        return len(self.data)
 
 class Board(Tk):
-    def __init__(self, dim: Dimensions):
+    def __init__(self, width: int, height: int, mine_count: int):
         # initialize instance variables
         self.casualties = 0 # the # of casualties that have ocurred (each mine tile revealed)
         self.duration = 0 # time in seconds since game has started
@@ -365,7 +364,7 @@ class Board(Tk):
         self.info_panel.grid(row=0, column=0, sticky='ew', columnspan=2)
 
         # create minefield
-        self.minefield = Minefield(self, dim.width, dim.height, dim.mine_count) # create Minefield Frame in Board
+        self.minefield = Minefield(self, width, height, mine_count) # create Minefield Frame in Board
         self.minefield.load() # call load function on Minefield instance after initialization (required)
         self.minefield.grid(row=1, column=0, padx=10, columnspan=2)
 
@@ -408,6 +407,8 @@ class Board(Tk):
             if self.clock_active.is_set():
                 self.duration += 1 # increment
                 self.info_panel.duration.set(time.strftime('%H:%M:%S', time.gmtime(self.duration)))
+            else:
+                self.info_panel.duration.set('PAUSED')
 
     def pause_unpause(self):
         # if game is paused, unpause it
@@ -449,5 +450,5 @@ class Board(Tk):
         self.destroy()
 
 if __name__ == "__main__":
-    board = Board(Dimensions(100, 40, 500))
+    board = Board(25, 25, 10)
     board.mainloop()
