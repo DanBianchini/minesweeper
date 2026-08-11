@@ -142,6 +142,10 @@ class Tile(Label):
 
         board = self.master.master # get pointer to the board for easier access
 
+        # depending on game state, exit the function (do not mark)
+        if board.game_state in (GameState.PAUSED, GameState.END, GameState.READY):
+            return
+
         # unmark tile if marked
         if self.cget('text') == Tile.FLAG:
             self.config(text='') # set tile text to blank
@@ -273,14 +277,17 @@ class Minefield(ttk.Frame):
             tile.update_idletasks() # update idle tasks so changes appear immediately
 
 class Info_Panel(ttk.Frame):
+    PAUSE_SYMBOL = chr(0x23f8)
+    PLAY_SYMBOL = chr(0x23f5)
+
     def __init__(self, board: Tk):
         ttk.Style().configure('Info_Panel.TFrame', background='black') # create custom style
         super().__init__(board, style='Info_Panel.TFrame') # call super constructor
 
-        # create labels
-        Label(self, text='Casualties', bg='#000000', fg='#ff0000').grid(row=0, column=0, sticky='ew')
-        Label(self, text='Time', bg='#000000', fg='#ffff00').grid(row=0, column=1, sticky='ew')
-        Label(self, text='Flags', bg='#000000', fg='#8080ff').grid(row=0, column=2, sticky='ew')
+        # create Labels
+        Label(self, text='Casualties', bg='#000000', fg='#ff0000').grid(row=0, column=0, sticky='e')
+        Label(self, text='Time', bg='#000000', fg='#ffff00').grid(row=0, column=1, columnspan=2)
+        Label(self, text='Flags', bg='#000000', fg='#8080ff').grid(row=0, column=3, sticky='w')
 
         # create StringVars for counter Labels
         self.casualties = StringVar()
@@ -292,10 +299,16 @@ class Info_Panel(ttk.Frame):
         self.duration.set('00:00:00')
         self.flags.set('0')
 
-        # create counters
-        Label(self, textvariable=self.casualties, bg='#000000', fg='#ff0000').grid(row=1, column=0, sticky='ew')
-        Label(self, textvariable=self.duration, bg='#000000', fg='#ffff00').grid(row=1, column=1, sticky='ew')
-        Label(self, textvariable=self.flags, bg='#000000', fg='#8080ff').grid(row=1, column=2, sticky='ew')
+        # configure columns
+        for col in (0, 1, 2, 3):
+            self.columnconfigure(col, weight=1, uniform='info_cols')
+
+        # create counters & pause button
+        Label(self, textvariable=self.casualties, bg='#000000', fg='#ff0000').grid(row=1, column=0, sticky='e')
+        Label(self, textvariable=self.duration, bg='#000000', fg='#ffff00').grid(row=1, column=1, sticky='e', padx=5)
+        self.pause_button = Button(self, text=Info_Panel.PAUSE_SYMBOL, command=self.master.pause_unpause, padx=5, pady=5)
+        self.pause_button.grid(row=1, column=2, sticky='w', padx=5)
+        Label(self, textvariable=self.flags, bg='#000000', fg='#8080ff').grid(row=1, column=3, sticky='w')
 
         # configure columns to expand evenly
         for col in (0, 1, 2):
@@ -306,6 +319,7 @@ class Info_Panel(ttk.Frame):
         self.casualties.set('0')
         self.duration.set('00:00:00')
         self.flags.set('0')
+        self.pause_button.config(text=Info_Panel.PAUSE_SYMBOL)
 
 class GameState:
     READY = 'ready'
@@ -375,6 +389,19 @@ class Board(Tk):
             if self.clock_active.is_set():
                 self.duration += 1 # increment
                 self.info_panel.duration.set(time.strftime('%H:%M:%S', time.gmtime(self.duration)))
+
+    def pause_unpause(self):
+        # if game is paused, unpause it
+        if self.game_state == GameState.PAUSED:
+            self.game_state = GameState.ACTIVE  # set game state back to 'active'
+            self.clock_active.set()             # set the clock flag
+            self.info_panel.pause_button.config(text=Info_Panel.PAUSE_SYMBOL) # change the button text to display the pause symbol
+
+        # if game is active, pause it
+        elif self.game_state == GameState.ACTIVE:
+            self.clock_active.clear()           # clear the clock flag
+            self.game_state = GameState.PAUSED  # set the game state to 'paused'
+            self.info_panel.pause_button.config(text=Info_Panel.PLAY_SYMBOL) # change the button text to display the play symbol
 
     def update_info_panel(self, casualty: bool = False, flag_increment: bool = None):
         # updating casualty counter
