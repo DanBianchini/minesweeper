@@ -1,5 +1,5 @@
 from tkinter import *
-from minesweeper import Tile
+from board import Tile, Dimensions
 
 def get_title_art():
     with open('title_art', encoding='utf-8') as f:
@@ -28,6 +28,7 @@ class DataEntry(Frame):
 
     def get_info(self):
         try:
+            self.error_message.set('')
             return int(self.data_entry.get())
         except ValueError:
             self.error_message.set("Unable to convert to an integer")
@@ -38,10 +39,13 @@ class ConfigureWindow(Tk):
     PRIMARY_COLOR = Tile.DEFAULT_COLOR
     SECONDARY_COLOR = Tile.FG_COLOR
 
-    def __init__(self):
+    def __init__(self, dimensions: Dimensions):
+        # setup window
         super().__init__()
         self.title('Minefield Setup')
         self.config(bg=ConfigureWindow.PRIMARY_COLOR)
+
+        self.dim = dimensions # keep a pointer to the minesweeper board
 
         # create Title Art Label
         Label(
@@ -72,9 +76,22 @@ class ConfigureWindow(Tk):
         ).grid(column=0, row=4, pady=10)
 
     def finalize(self):
+        result = [] # initialize result with empty list
+
+        # iterate thru data entries, get info
         for data_entry in self.data_entries:
-            data_entry.get_info()
+            result.append(data_entry.get_info())
+
+        # if any of the results were None, exit the function
+        if None in result:
+            return None
+
+        # if we made it to this point, inject the result into the Dimensions object and close this window
+        self.dim.update(*tuple(result))
+        self.destroy()
 
 if __name__ == '__main__':
-    cw = ConfigureWindow()
+    dim = Dimensions()
+    cw = ConfigureWindow(dim)
     cw.mainloop()
+    print(f"Width: {dim.width}\nHeight: {dim.height}\nMine Count: {dim.mine_count}")
