@@ -393,7 +393,7 @@ class Board(Tk):
     def start_game(self):
         self.game_state = GameState.ACTIVE # set the game state to 'active'
         self.clock_active.set() # signal to the clock to start counting
-        self.all_clear_button.config(state=ACTIVE)
+        self.all_clear_button.config(state=NORMAL)
 
     def end_game(self):
         self.game_state = GameState.END # set game state to 'end'
