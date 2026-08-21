@@ -324,10 +324,10 @@ class Info_Panel(ttk.Frame):
         self.pause_button.config(text=Info_Panel.PAUSE_SYMBOL)
 
 class GameState:
-    READY = 'ready'
-    ACTIVE = 'active'
-    PAUSED = 'paused'
-    END = 'end'
+    READY = 'ready'     # game is ready to begin but has not yet started
+    ACTIVE = 'active'   # in the middle of a game; game is active
+    PAUSED = 'paused'   # in the middle of a game; game has been paused
+    END = 'end'         # game has ended
 
 class Data:
     def __init__(self, *data):
