@@ -407,8 +407,6 @@ class Board(Tk):
             if self.clock_active.is_set():
                 self.duration += 1 # increment
                 self.info_panel.duration.set(time.strftime('%H:%M:%S', time.gmtime(self.duration)))
-            else:
-                self.info_panel.duration.set('PAUSED')
 
     def pause_unpause(self):
         # if game is paused, unpause it
