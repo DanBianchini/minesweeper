@@ -329,22 +329,6 @@ class GameState:
     PAUSED = 'paused'   # in the middle of a game; game has been paused
     END = 'end'         # game has ended
 
-class Data:
-    def __init__(self, *data):
-        self.data = data
-
-    def update(self, *data):
-        self.data = data
-
-    def get(self):
-        return self.data
-
-    def __str__(self):
-        return str(self.data)
-
-    def __len__(self):
-        return len(self.data)
-
 class Board(Tk):
     def __init__(self, width: int, height: int, mine_count: int):
         # initialize instance variables

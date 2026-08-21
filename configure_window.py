@@ -1,9 +1,25 @@
 from tkinter import *
-from board import Tile, Data
+from board import Tile
 
 def get_title_art():
     with open('title_art', encoding='utf-8') as f:
         return f.read()
+
+class Data:
+    def __init__(self, *data):
+        self.data = data
+
+    def update(self, *data):
+        self.data = data
+
+    def get(self):
+        return self.data
+
+    def __str__(self):
+        return str(self.data)
+
+    def __len__(self):
+        return len(self.data)
 
 class DataField:
     def __init__(self, frm: Frame, row: int, name: str):

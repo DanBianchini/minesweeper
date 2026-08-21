@@ -1,5 +1,5 @@
-from board import Board, Data
-from configure_window import ConfigureWindow
+from board import Board
+from configure_window import ConfigureWindow, Data
 import sys
 
 if __name__ == '__main__':
